@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.vsix
+.vscode-test/
+.DS_Store
+gitforge.code-workspace
+.idea
+.vscode
+gitforge-*.vsix
+

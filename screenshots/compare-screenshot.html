@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>GitForge - Compare with Branch</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { 
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1e1e1e;
+    color: #cccccc;
+    min-height: 100vh;
+}
+.vscode-frame {
+    border: 1px solid #3c3c3c;
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+.title-bar {
+    background: #323233;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.title-bar .dots {
+    display: flex;
+    gap: 6px;
+}
+.title-bar .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+.dot.red { background: #ff5f56; }
+.dot.yellow { background: #ffbd2e; }
+.dot.green { background: #27c93f; }
+.title-bar .title {
+    flex: 1;
+    text-align: center;
+    font-size: 12px;
+    color: #8b8b8b;
+}
+.header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: #252526;
+    border-bottom: 1px solid #3c3c3c;
+    gap: 12px;
+}
+.header h1 { font-size: 13px; flex: 1; color: #e0e0e0; }
+.branch {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.branch.current { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
+.branch.compare { background: rgba(88, 166, 255, 0.15); color: #58a6ff; }
+.btn {
+    padding: 5px 12px;
+    border: 1px solid #3c3c3c;
+    border-radius: 4px;
+    background: #3c3c3c;
+    color: #cccccc;
+    cursor: pointer;
+    font-size: 11px;
+}
+.actions-bar {
+    display: flex;
+    gap: 12px;
+    padding: 8px 16px;
+    background: #252526;
+    border-bottom: 1px solid #3c3c3c;
+}
+.btn-revert-all {
+    padding: 6px 16px;
+    background: #6e4000;
+    color: #ffcc00;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.diff-header {
+    display: flex;
+    background: #2d2d2d;
+    border-bottom: 1px solid #3c3c3c;
+}
+.diff-header-col {
+    flex: 1;
+    padding: 8px 16px;
+    font-weight: 600;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.diff-header-col.left { 
+    border-right: 1px solid #3c3c3c;
+    color: #f85149;
+}
+.diff-header-col.right { color: #3fb950; }
+.diff-header-col .tag {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+}
+.diff-header-col.left .tag { background: rgba(248, 81, 73, 0.2); }
+.diff-header-col.right .tag { background: rgba(63, 185, 80, 0.2); }
+.hunk-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: rgba(56, 139, 253, 0.1);
+    color: #58a6ff;
+    font-size: 12px;
+    font-family: 'SF Mono', Consolas, monospace;
+    border-top: 1px solid #3c3c3c;
+}
+.revert-hunk-btn {
+    padding: 4px 10px;
+    background: #3c3c3c;
+    color: #cccccc;
+    border: none;
+    border-radius: 4px;
+    font-size: 11px;
+}
+.content { font-family: 'SF Mono', Consolas, monospace; font-size: 13px; }
+.diff-row {
+    display: flex;
+    min-height: 24px;
+    border-bottom: 1px solid #2d2d2d;
+}
+.diff-row.del .line-content.left { background: rgba(248, 81, 73, 0.15); }
+.diff-row.add .line-content.right { background: rgba(63, 185, 80, 0.15); }
+.diff-row .line-content.empty { background: #1e1e1e; }
+.line-num {
+    width: 45px;
+    min-width: 45px;
+    padding: 0 8px;
+    text-align: right;
+    color: #6e7681;
+    background: #252526;
+    font-size: 11px;
+    line-height: 24px;
+}
+.line-content {
+    flex: 1;
+    overflow-x: auto;
+}
+.line-content pre {
+    margin: 0;
+    padding: 0 12px;
+    line-height: 24px;
+    white-space: pre;
+}
+.line-actions {
+    width: 40px;
+    min-width: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #252526;
+    border-left: 1px solid #3c3c3c;
+    border-right: 1px solid #3c3c3c;
+}
+.revert-btn {
+    width: 24px;
+    height: 20px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    background: #0078d4;
+    color: white;
+}
+.revert-btn.del { background: #6e2020; color: #f85149; }
+.file-stats { display: flex; gap: 12px; font-size: 12px; }
+.stat-add { color: #3fb950; }
+.stat-del { color: #f85149; }
+.watermark {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(30,30,30,0.9);
+    padding: 12px 20px;
+    border-radius: 8px;
+    border: 1px solid #3c3c3c;
+}
+.watermark img { width: 40px; height: 40px; }
+.watermark-text { font-size: 18px; font-weight: 600; color: #e0e0e0; }
+</style>
+</head>
+<body>
+    <div class="vscode-frame">
+        <div class="title-bar">
+            <div class="dots">
+                <div class="dot red"></div>
+                <div class="dot yellow"></div>
+                <div class="dot green"></div>
+            </div>
+            <div class="title">Compare: UserService.ts (main ↔ feature/auth)</div>
+        </div>
+        <div class="header">
+            <button class="btn">← Back</button>
+            <h1>src/services/UserService.ts</h1>
+            <div class="file-stats">
+                <span class="stat-add">+12</span>
+                <span class="stat-del">-5</span>
+            </div>
+            <button class="btn">📝 Open File</button>
+        </div>
+        <div class="actions-bar">
+            <button class="btn-revert-all">↩ Revert All Changes to feature/auth</button>
+        </div>
+        <div class="diff-header">
+            <div class="diff-header-col left">
+                <span class="tag">feature/auth</span>
+                <span>Other Branch</span>
+            </div>
+            <div class="diff-header-col right">
+                <span class="tag">Current</span>
+                <span>Your Working Directory</span>
+            </div>
+        </div>
+        <div class="content">
+            <div class="hunk-header">
+                <span>@@ -15,7 +15,14 @@</span>
+                <button class="revert-hunk-btn">↩ Revert Block</button>
+            </div>
+            
+            <div class="diff-row context">
+                <div class="line-num">15</div>
+                <div class="line-content left"><pre>import { Database } from './Database';</pre></div>
+                <div class="line-actions"></div>
+                <div class="line-num">15</div>
+                <div class="line-content right"><pre>import { Database } from './Database';</pre></div>
+            </div>
+            
+            <div class="diff-row context">
+                <div class="line-num">16</div>
+                <div class="line-content left"><pre></pre></div>
+                <div class="line-actions"></div>
+                <div class="line-num">16</div>
+                <div class="line-content right"><pre></pre></div>
+            </div>
+            
+            <div class="diff-row del">
+                <div class="line-num">17</div>
+                <div class="line-content left"><pre>export class UserService {</pre></div>
+                <div class="line-actions">
+                    <button class="revert-btn" title="Restore this line">→</button>
+                </div>
+                <div class="line-num empty"></div>
+                <div class="line-content right empty"></div>
+            </div>
+            
+            <div class="diff-row add">
+                <div class="line-num empty"></div>
+                <div class="line-content left empty"></div>
+                <div class="line-actions">
+                    <button class="revert-btn del" title="Remove this line">←</button>
+                </div>
+                <div class="line-num">17</div>
+                <div class="line-content right"><pre>export class UserService extends BaseService {</pre></div>
+            </div>
+            
+            <div class="diff-row add">
+                <div class="line-num empty"></div>
+                <div class="line-content left empty"></div>
+                <div class="line-actions">
+                    <button class="revert-btn del" title="Remove this line">←</button>
+                </div>
+                <div class="line-num">18</div>
+                <div class="line-content right"><pre>  private readonly cache: Map&lt;string, User&gt;;</pre></div>
+            </div>
+            
+            <div class="diff-row context">
+                <div class="line-num">18</div>
+                <div class="line-content left"><pre>  private db: Database;</pre></div>
+                <div class="line-actions"></div>
+                <div class="line-num">19</div>
+                <div class="line-content right"><pre>  private db: Database;</pre></div>
+            </div>
+            
+            <div class="diff-row del">
+                <div class="line-num">19</div>
+                <div class="line-content left"><pre>  private users: User[] = [];</pre></div>
+                <div class="line-actions">
+                    <button class="revert-btn" title="Restore this line">→</button>
+                </div>
+                <div class="line-num empty"></div>
+                <div class="line-content right empty"></div>
+            </div>
+            
+            <div class="diff-row add">
+                <div class="line-num empty"></div>
+                <div class="line-content left empty"></div>
+                <div class="line-actions">
+                    <button class="revert-btn del" title="Remove this line">←</button>
+                </div>
+                <div class="line-num">20</div>
+                <div class="line-content right"><pre>  private users: Map&lt;string, User&gt; = new Map();</pre></div>
+            </div>
+            
+            <div class="diff-row context">
+                <div class="line-num">20</div>
+                <div class="line-content left"><pre></pre></div>
+                <div class="line-actions"></div>
+                <div class="line-num">21</div>
+                <div class="line-content right"><pre></pre></div>
+            </div>
+            
+            <div class="diff-row add">
+                <div class="line-num empty"></div>
+                <div class="line-content left empty"></div>
+                <div class="line-actions">
+                    <button class="revert-btn del" title="Remove this line">←</button>
+                </div>
+                <div class="line-num">22</div>
+                <div class="line-content right"><pre>  constructor(db: Database) {</pre></div>
+            </div>
+            
+            <div class="diff-row add">
+                <div class="line-num empty"></div>
+                <div class="line-content left empty"></div>
+                <div class="line-actions">
+                    <button class="revert-btn del" title="Remove this line">←</button>
+                </div>
+                <div class="line-num">23</div>
+                <div class="line-content right"><pre>    super();</pre></div>
+            </div>
+            
+            <div class="diff-row add">
+                <div class="line-num empty"></div>
+                <div class="line-content left empty"></div>
+                <div class="line-actions">
+                    <button class="revert-btn del" title="Remove this line">←</button>
+                </div>
+                <div class="line-num">24</div>
+                <div class="line-content right"><pre>    this.db = db;</pre></div>
+            </div>
+            
+            <div class="diff-row add">
+                <div class="line-num empty"></div>
+                <div class="line-content left empty"></div>
+                <div class="line-actions">
+                    <button class="revert-btn del" title="Remove this line">←</button>
+                </div>
+                <div class="line-num">25</div>
+                <div class="line-content right"><pre>    this.cache = new Map();</pre></div>
+            </div>
+            
+            <div class="diff-row add">
+                <div class="line-num empty"></div>
+                <div class="line-content left empty"></div>
+                <div class="line-actions">
+                    <button class="revert-btn del" title="Remove this line">←</button>
+                </div>
+                <div class="line-num">26</div>
+                <div class="line-content right"><pre>  }</pre></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="watermark">
+        <img src="gitforge-icon.svg" alt="GitForge">
+        <span class="watermark-text">GitForge</span>
+    </div>
+</body>
+</html>
+

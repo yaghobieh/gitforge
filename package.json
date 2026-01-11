@@ -1,0 +1,399 @@
+{
+  "name": "gitforge",
+  "displayName": "GitForge",
+  "description": "Advanced Git tools: inline blame, conflict resolver, rollback, cherry-pick - inspired by JetBrains IDEs",
+  "version": "1.0.3",
+  "author": {
+    "name": "John Yaghobieh",
+    "email": "hello@jflcon.net"
+  },
+  "publisher": "Yaghobieh",
+  "icon": "resources/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Other"
+  ],
+  "keywords": [
+    "git",
+    "blame",
+    "conflict",
+    "merge",
+    "diff",
+    "rollback",
+    "cherry-pick",
+    "version control"
+  ],
+  "galleryBanner": {
+    "color": "#1e1e2e",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://gitlab.com/Jfalcon_Digita/gitfog"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "gitforge.toggleBlame",
+        "title": "Toggle Line Blame",
+        "category": "GitForge",
+        "icon": "$(git-commit)"
+      },
+      {
+        "command": "gitforge.showLineHistory",
+        "title": "Show Line History",
+        "category": "GitForge",
+        "icon": "$(history)"
+      },
+      {
+        "command": "gitforge.copyCommitHash",
+        "title": "Copy Commit Hash",
+        "category": "GitForge"
+      },
+      {
+        "command": "gitforge.showCommitChanges",
+        "title": "Show Commit Changes",
+        "category": "GitForge"
+      },
+      {
+        "command": "gitforge.openConflictResolver",
+        "title": "Open Conflict Resolver",
+        "category": "GitForge",
+        "icon": "$(git-merge)"
+      },
+      {
+        "command": "gitforge.showMergePanel",
+        "title": "Show Merge Changes Panel",
+        "category": "GitForge",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "gitforge.resolveConflict",
+        "title": "Resolve Current Conflict",
+        "category": "GitForge",
+        "icon": "$(check)"
+      },
+      {
+        "command": "gitforge.rollback",
+        "title": "Rollback Changes...",
+        "category": "GitForge",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "gitforge.rollbackFile",
+        "title": "Rollback This File",
+        "category": "GitForge",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "gitforge.cherryPick",
+        "title": "Cherry Pick...",
+        "category": "GitForge",
+        "icon": "$(git-cherry-pick)"
+      },
+      {
+        "command": "gitforge.stash",
+        "title": "Stash Changes...",
+        "category": "GitForge",
+        "icon": "$(archive)"
+      },
+      {
+        "command": "gitforge.stashPop",
+        "title": "Pop Stash...",
+        "category": "GitForge",
+        "icon": "$(package)"
+      },
+      {
+        "command": "gitforge.resetHard",
+        "title": "Reset Hard...",
+        "category": "GitForge",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "gitforge.resetSoft",
+        "title": "Reset Soft...",
+        "category": "GitForge",
+        "icon": "$(debug-step-back)"
+      },
+      {
+        "command": "gitforge.showLog",
+        "title": "Show Git Log",
+        "category": "GitForge",
+        "icon": "$(list-ordered)"
+      },
+      {
+        "command": "gitforge.showBranches",
+        "title": "Branches...",
+        "category": "GitForge",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "gitforge.fetch",
+        "title": "Fetch",
+        "category": "GitForge",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "gitforge.pull",
+        "title": "Pull",
+        "category": "GitForge",
+        "icon": "$(repo-pull)"
+      },
+      {
+        "command": "gitforge.push",
+        "title": "Push",
+        "category": "GitForge",
+        "icon": "$(repo-push)"
+      },
+      {
+        "command": "gitforge.commit",
+        "title": "Commit...",
+        "category": "GitForge",
+        "icon": "$(check)"
+      },
+      {
+        "command": "gitforge.compareBranch",
+        "title": "Compare with Branch...",
+        "category": "GitForge",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "gitforge.branchQuickPick",
+        "title": "Branch Actions...",
+        "category": "GitForge",
+        "icon": "$(git-merge)"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "gitforge.submenu",
+        "label": "Git",
+        "icon": "$(git-branch)"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "submenu": "gitforge.submenu",
+          "group": "navigation"
+        }
+      ],
+      "gitforge.submenu": [
+        {
+          "command": "gitforge.showLineHistory",
+          "group": "1_blame@1"
+        },
+        {
+          "command": "gitforge.toggleBlame",
+          "group": "1_blame@2"
+        },
+        {
+          "command": "gitforge.rollbackFile",
+          "group": "2_changes@1"
+        },
+        {
+          "command": "gitforge.rollback",
+          "group": "2_changes@2"
+        },
+        {
+          "command": "gitforge.openConflictResolver",
+          "group": "3_merge@1"
+        },
+        {
+          "command": "gitforge.cherryPick",
+          "group": "4_advanced@1"
+        },
+        {
+          "command": "gitforge.stash",
+          "group": "4_advanced@2"
+        },
+        {
+          "command": "gitforge.stashPop",
+          "group": "4_advanced@3"
+        },
+        {
+          "command": "gitforge.showLog",
+          "group": "5_info@1"
+        },
+        {
+          "command": "gitforge.showBranches",
+          "group": "5_info@2"
+        },
+        {
+          "command": "gitforge.compareBranch",
+          "group": "5_info@3"
+        },
+        {
+          "command": "gitforge.branchQuickPick",
+          "group": "5_info@4"
+        },
+        {
+          "command": "gitforge.fetch",
+          "group": "6_remote@1"
+        },
+        {
+          "command": "gitforge.pull",
+          "group": "6_remote@2"
+        },
+        {
+          "command": "gitforge.push",
+          "group": "6_remote@3"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "gitforge.toggleBlame",
+          "group": "navigation"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "gitforge.branchQuickPick",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitforge.openConflictResolver",
+          "group": "navigation@2",
+          "when": "gitforge.hasConflicts"
+        },
+        {
+          "command": "gitforge.showMergePanel",
+          "group": "navigation@3"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "gitforge",
+          "title": "GitForge",
+          "icon": "resources/gitforge-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "gitforge": [
+        {
+          "id": "gitforge.mergeChanges",
+          "name": "Merge Changes",
+          "when": "gitforge.isGitRepo"
+        },
+        {
+          "id": "gitforge.conflicts",
+          "name": "Conflicts",
+          "when": "gitforge.hasConflicts"
+        },
+        {
+          "id": "gitforge.blameHistory",
+          "name": "Blame History",
+          "when": "gitforge.isGitRepo"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "GitForge",
+      "properties": {
+        "gitforge.blame.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable inline blame annotations"
+        },
+        "gitforge.blame.showOnHover": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show blame info on hover"
+        },
+        "gitforge.blame.dateFormat": {
+          "type": "string",
+          "default": "relative",
+          "enum": [
+            "relative",
+            "absolute",
+            "short"
+          ],
+          "description": "Date format for blame annotations"
+        },
+        "gitforge.blame.maxHistoryDepth": {
+          "type": "number",
+          "default": 100,
+          "description": "Maximum number of commits to show in line history"
+        },
+        "gitforge.conflictResolver.autoOpen": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically open conflict resolver when conflicts are detected"
+        },
+        "gitforge.mergePanel.showOnMerge": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically show merge panel during merge operations"
+        }
+      }
+    },
+    "colors": [
+      {
+        "id": "gitforge.blameBackground",
+        "description": "Background color for blame annotations",
+        "defaults": {
+          "dark": "#1e1e2e40",
+          "light": "#f5f5f540"
+        }
+      },
+      {
+        "id": "gitforge.blameForeground",
+        "description": "Foreground color for blame text",
+        "defaults": {
+          "dark": "#6c7086",
+          "light": "#666666"
+        }
+      },
+      {
+        "id": "gitforge.conflictOurs",
+        "description": "Background for 'ours' in conflict",
+        "defaults": {
+          "dark": "#a6e3a120",
+          "light": "#40a02b20"
+        }
+      },
+      {
+        "id": "gitforge.conflictTheirs",
+        "description": "Background for 'theirs' in conflict",
+        "defaults": {
+          "dark": "#89b4fa20",
+          "light": "#1e66f520"
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify",
+    "watch": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --watch",
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js",
+    "lint": "eslint src --ext ts",
+    "package": "bash -c 'source ~/.nvm/nvm.sh && npx @vscode/vsce package --no-dependencies'",
+    "publish:vsce": "bash -c 'source ~/.nvm/nvm.sh && npm run compile && npx @vscode/vsce publish'",
+    "publish:ovsx": "npm run package && npx ovsx publish gitforge-$(node -p \"require('./package.json').version\").vsix -p ovsxat_0f98823d-9e7b-4a46-80aa-2dbc8f581076"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@vscode/vsce": "^2.19.0",
+    "esbuild": "^0.19.8",
+    "eslint": "^8.55.0",
+    "typescript": "^5.3.2"
+  },
+  "dependencies": {
+    "simple-git": "^3.21.0"
+  }
+}

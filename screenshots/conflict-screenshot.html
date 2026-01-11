@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>GitForge - Conflict Resolver</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { 
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1e1e1e;
+    color: #cccccc;
+    min-height: 100vh;
+}
+.vscode-frame {
+    border: 1px solid #3c3c3c;
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+.title-bar {
+    background: #323233;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.title-bar .dots {
+    display: flex;
+    gap: 6px;
+}
+.title-bar .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+.dot.red { background: #ff5f56; }
+.dot.yellow { background: #ffbd2e; }
+.dot.green { background: #27c93f; }
+.title-bar .title {
+    flex: 1;
+    text-align: center;
+    font-size: 12px;
+    color: #8b8b8b;
+}
+.header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: #252526;
+    border-bottom: 1px solid #3c3c3c;
+    gap: 12px;
+}
+.header h1 { font-size: 14px; flex: 1; color: #e0e0e0; }
+.branch {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.branch.ours { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
+.branch.theirs { background: rgba(88, 166, 255, 0.15); color: #58a6ff; }
+.btn {
+    padding: 5px 12px;
+    border: 1px solid #3c3c3c;
+    border-radius: 4px;
+    background: #3c3c3c;
+    color: #cccccc;
+    cursor: pointer;
+    font-size: 11px;
+}
+.merge-container {
+    display: flex;
+    height: calc(100vh - 200px);
+    min-height: 400px;
+}
+.panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #3c3c3c;
+}
+.panel:last-child { border-right: none; }
+.panel-header {
+    padding: 10px 16px;
+    background: #2d2d2d;
+    border-bottom: 1px solid #3c3c3c;
+    font-weight: 600;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.panel-header.ours { color: #3fb950; }
+.panel-header.result { color: #a371f7; }
+.panel-header.theirs { color: #58a6ff; }
+.panel-header .tag {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    background: rgba(255,255,255,0.1);
+}
+.panel-content {
+    flex: 1;
+    overflow: auto;
+    font-family: 'SF Mono', Consolas, monospace;
+    font-size: 13px;
+    line-height: 22px;
+}
+.code-line {
+    padding: 0 16px;
+    min-height: 22px;
+    white-space: pre;
+    display: flex;
+    align-items: center;
+}
+.code-line .num {
+    width: 40px;
+    min-width: 40px;
+    color: #6e7681;
+    text-align: right;
+    padding-right: 12px;
+    user-select: none;
+}
+.code-line.conflict-ours { background: rgba(63, 185, 80, 0.15); }
+.code-line.conflict-theirs { background: rgba(88, 166, 255, 0.15); }
+.code-line.conflict-result { background: rgba(163, 113, 247, 0.15); }
+.conflict-block {
+    border-left: 3px solid;
+    margin: 4px 0;
+}
+.conflict-block.ours { border-color: #3fb950; }
+.conflict-block.theirs { border-color: #58a6ff; }
+.conflict-actions {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #252526;
+    border-top: 1px solid #3c3c3c;
+    border-bottom: 1px solid #3c3c3c;
+}
+.action-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.action-btn.accept-ours { background: #238636; color: white; }
+.action-btn.accept-theirs { background: #1f6feb; color: white; }
+.action-btn.accept-both { background: #8b5cf6; color: white; }
+.action-btn.ai { background: #f59e0b; color: #1e1e1e; }
+.arrow-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    border: none;
+    background: #3c3c3c;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.arrow-btn.left { background: #238636; }
+.arrow-btn.right { background: #1f6feb; }
+.file-list {
+    width: 220px;
+    background: #252526;
+    border-right: 1px solid #3c3c3c;
+    display: flex;
+    flex-direction: column;
+}
+.file-list-header {
+    padding: 10px 16px;
+    background: #2d2d2d;
+    border-bottom: 1px solid #3c3c3c;
+    font-weight: 600;
+    font-size: 12px;
+    color: #e0e0e0;
+}
+.file-item {
+    padding: 10px 16px;
+    border-bottom: 1px solid #2d2d2d;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.file-item:hover { background: #2d2d2d; }
+.file-item.active { background: #37373d; border-left: 2px solid #0078d4; }
+.file-item .icon { font-size: 16px; }
+.file-item .name { font-size: 12px; flex: 1; }
+.file-item .status { 
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: #6e4000;
+    color: #ffcc00;
+}
+.file-item .status.resolved { background: #238636; color: white; }
+.watermark {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(30,30,30,0.9);
+    padding: 12px 20px;
+    border-radius: 8px;
+    border: 1px solid #3c3c3c;
+}
+.watermark img { width: 40px; height: 40px; }
+.watermark-text { font-size: 18px; font-weight: 600; color: #e0e0e0; }
+</style>
+</head>
+<body>
+    <div class="vscode-frame">
+        <div class="title-bar">
+            <div class="dots">
+                <div class="dot red"></div>
+                <div class="dot yellow"></div>
+                <div class="dot green"></div>
+            </div>
+            <div class="title">GitForge: Conflict Resolver — Merging feature/auth → main</div>
+        </div>
+        <div class="header">
+            <h1>⚔️ 3 Conflicts to Resolve</h1>
+            <span class="branch ours">main (HEAD)</span>
+            <span style="color:#6e7681">←</span>
+            <span class="branch theirs">feature/auth</span>
+            <button class="btn">✕ Close</button>
+        </div>
+        
+        <div style="display:flex; height: 500px;">
+            <div class="file-list">
+                <div class="file-list-header">Conflicted Files</div>
+                <div class="file-item active">
+                    <span class="icon">📄</span>
+                    <span class="name">UserService.ts</span>
+                    <span class="status">2 conflicts</span>
+                </div>
+                <div class="file-item">
+                    <span class="icon">📄</span>
+                    <span class="name">AuthController.ts</span>
+                    <span class="status resolved">✓ Resolved</span>
+                </div>
+                <div class="file-item">
+                    <span class="icon">📄</span>
+                    <span class="name">config.json</span>
+                    <span class="status">1 conflict</span>
+                </div>
+            </div>
+            
+            <div class="merge-container" style="flex:1">
+                <div class="panel">
+                    <div class="panel-header ours">
+                        <span class="tag">LOCAL</span>
+                        main (HEAD)
+                    </div>
+                    <div class="panel-content">
+                        <div class="code-line"><span class="num">14</span>import { Logger } from './Logger';</div>
+                        <div class="code-line"><span class="num">15</span></div>
+                        <div class="conflict-block ours">
+                            <div class="code-line conflict-ours"><span class="num">16</span>export class UserService {</div>
+                            <div class="code-line conflict-ours"><span class="num">17</span>  private db: Database;</div>
+                            <div class="code-line conflict-ours"><span class="num">18</span>  private users: User[] = [];</div>
+                        </div>
+                        <div class="code-line"><span class="num">19</span></div>
+                        <div class="code-line"><span class="num">20</span>  async getUser(id: string) {</div>
+                    </div>
+                </div>
+                
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:8px; background:#1e1e1e;">
+                    <button class="arrow-btn left" title="Accept Local">»</button>
+                    <button class="arrow-btn right" title="Accept Remote">«</button>
+                </div>
+                
+                <div class="panel">
+                    <div class="panel-header result">
+                        <span class="tag">RESULT</span>
+                        Merged Output
+                    </div>
+                    <div class="panel-content">
+                        <div class="code-line"><span class="num">14</span>import { Logger } from './Logger';</div>
+                        <div class="code-line"><span class="num">15</span></div>
+                        <div class="conflict-block" style="border-color:#a371f7">
+                            <div class="code-line conflict-result"><span class="num">16</span><span style="color:#6e7681; font-style:italic">// Click an arrow to accept changes...</span></div>
+                        </div>
+                        <div class="code-line"><span class="num">17</span></div>
+                        <div class="code-line"><span class="num">18</span>  async getUser(id: string) {</div>
+                    </div>
+                </div>
+                
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:8px; background:#1e1e1e;">
+                    <button class="arrow-btn right" title="Accept Remote">»</button>
+                    <button class="arrow-btn left" title="Accept Local">«</button>
+                </div>
+                
+                <div class="panel">
+                    <div class="panel-header theirs">
+                        <span class="tag">REMOTE</span>
+                        feature/auth
+                    </div>
+                    <div class="panel-content">
+                        <div class="code-line"><span class="num">14</span>import { Logger } from './Logger';</div>
+                        <div class="code-line"><span class="num">15</span>import { Cache } from './Cache';</div>
+                        <div class="conflict-block theirs">
+                            <div class="code-line conflict-theirs"><span class="num">16</span>export class UserService extends BaseService {</div>
+                            <div class="code-line conflict-theirs"><span class="num">17</span>  private readonly cache: Cache;</div>
+                            <div class="code-line conflict-theirs"><span class="num">18</span>  private db: Database;</div>
+                            <div class="code-line conflict-theirs"><span class="num">19</span>  private users: Map&lt;string, User&gt;;</div>
+                        </div>
+                        <div class="code-line"><span class="num">20</span></div>
+                        <div class="code-line"><span class="num">21</span>  async getUser(id: string) {</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="conflict-actions">
+            <button class="action-btn accept-ours">✓ Accept Local</button>
+            <button class="action-btn accept-theirs">✓ Accept Remote</button>
+            <button class="action-btn accept-both">⊕ Accept Both</button>
+            <button class="action-btn ai">🤖 AI Merge</button>
+            <div style="flex:1"></div>
+            <button class="btn" style="background:#238636; color:white; border:none;">💾 Save & Next Conflict</button>
+        </div>
+    </div>
+    
+    <div class="watermark">
+        <img src="gitforge-icon.svg" alt="GitForge">
+        <span class="watermark-text">GitForge</span>
+    </div>
+</body>
+</html>
+
