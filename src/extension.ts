@@ -5,12 +5,20 @@ import { MergePanel } from './merge/MergePanel';
 import { GitService } from './utils/GitService';
 import { GitOperations } from './operations/GitOperations';
 import { CompareBranchPanel } from './operations/CompareBranchPanel';
+import { CommitGraphPanel } from './graph/CommitGraphPanel';
+import { FileHistoryProvider } from './history/FileHistoryProvider';
+import { RepoExplorerProvider, RepoItem } from './explorer/RepoExplorerProvider';
+import { MergeBasePanel } from './compare/MergeBasePanel';
 
 let blameController: BlameController | null = null;
 let conflictResolver: ConflictResolver | null = null;
 let mergePanel: MergePanel | null = null;
 let gitOperations: GitOperations | null = null;
 let compareBranchPanel: CompareBranchPanel | null = null;
+let commitGraph: CommitGraphPanel | null = null;
+let fileHistory: FileHistoryProvider | null = null;
+let repoExplorer: RepoExplorerProvider | null = null;
+let mergeBasePanel: MergeBasePanel | null = null;
 let gitService: GitService;
 let conflictWatcher: NodeJS.Timeout | null = null;
 let lastConflictState: boolean = false;
@@ -33,6 +41,10 @@ export async function activate(context: vscode.ExtensionContext) {
     mergePanel = new MergePanel(context, gitService);
     gitOperations = new GitOperations(context, gitService);
     compareBranchPanel = new CompareBranchPanel(context, gitService);
+    commitGraph = new CommitGraphPanel(gitService);
+    fileHistory = new FileHistoryProvider(gitService);
+    repoExplorer = new RepoExplorerProvider(gitService);
+    mergeBasePanel = new MergeBasePanel(gitService);
 
     // Register commands
     const commands = [
@@ -142,6 +154,23 @@ export async function activate(context: vscode.ExtensionContext) {
             console.log('GitForge: Compare branch command triggered');
             compareBranchPanel?.show();
         }),
+
+        vscode.commands.registerCommand('gitforge.showCommitGraph', () => commitGraph?.show()),
+        vscode.commands.registerCommand('gitforge.showCommitDetails', (args: { hash?: string }) => {
+            commitGraph?.show(args?.hash);
+        }),
+        vscode.commands.registerCommand('gitforge.showFileHistory', () => fileHistory?.loadActiveFile()),
+        vscode.commands.registerCommand('gitforge.stepLineOlder', () => blameController?.stepLineHistory('older')),
+        vscode.commands.registerCommand('gitforge.stepLineNewer', () => blameController?.stepLineHistory('newer')),
+        vscode.commands.registerCommand('gitforge.compareMergeBase', () => mergeBasePanel?.show()),
+        vscode.commands.registerCommand('gitforge.refreshExplorer', () => repoExplorer?.refresh()),
+        vscode.commands.registerCommand('gitforge.explorerCheckout', (item: RepoItem) => repoExplorer?.checkout(item)),
+        vscode.commands.registerCommand('gitforge.explorerMerge', (item: RepoItem) => repoExplorer?.merge(item)),
+        vscode.commands.registerCommand('gitforge.explorerDeleteBranch', (item: RepoItem) => repoExplorer?.removeBranch(item)),
+        vscode.commands.registerCommand('gitforge.explorerDeleteTag', (item: RepoItem) => repoExplorer?.removeTag(item)),
+        vscode.commands.registerCommand('gitforge.explorerApplyStash', (item: RepoItem) => repoExplorer?.applyStash(item)),
+        vscode.commands.registerCommand('gitforge.explorerDropStash', (item: RepoItem) => repoExplorer?.dropStash(item)),
+        vscode.commands.registerCommand('gitforge.explorerOpenRemote', (item: RepoItem) => repoExplorer?.openRemote(item)),
 
         // Branch quick actions (status bar)
         vscode.commands.registerCommand('gitforge.branchQuickPick', async () => {
@@ -329,9 +358,9 @@ export async function activate(context: vscode.ExtensionContext) {
     // Create GitForge icon button - LEFT side, right after git branch
     branchStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 99);
     branchStatusBar.command = 'gitforge.branchQuickPick';
+    branchStatusBar.name = 'GitForge';
     branchStatusBar.tooltip = 'GitForge\n─────────────\n• New Branch\n• Merge Branch\n• Rename Branch\n• Push / Pull / Fetch';
-    branchStatusBar.text = '$(source-control)'; // Git/source control icon
-    branchStatusBar.backgroundColor = new vscode.ThemeColor('statusBarItem.prominentBackground');
+    paintStatusBar('');
     branchStatusBar.show();
     context.subscriptions.push(branchStatusBar);
     console.log('GitForge: Icon button created');
@@ -343,6 +372,14 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.window.registerTreeDataProvider('gitforge.mergeChanges', mergePanel.getTreeDataProvider());
     vscode.window.registerTreeDataProvider('gitforge.conflicts', conflictResolver.getTreeDataProvider());
     vscode.window.registerTreeDataProvider('gitforge.blameHistory', blameController.getHistoryProvider());
+    vscode.window.registerTreeDataProvider('gitforge.fileHistory', fileHistory);
+    vscode.window.registerTreeDataProvider('gitforge.explorer', repoExplorer);
+    context.subscriptions.push(
+        vscode.window.onDidChangeActiveTextEditor(() => {
+            fileHistory?.loadActiveFile();
+        })
+    );
+    fileHistory.loadActiveFile();
 
     // Start conflict watcher - checks for new conflicts every 2 seconds
     startConflictWatcher();
@@ -374,16 +411,22 @@ async function updateBranchStatusBar() {
     
     try {
         const branch = await gitService.getCurrentBranch();
-        // Always show the flame icon
-        branchStatusBar.text = '$(source-control)';
+        paintStatusBar(branch);
         branchStatusBar.tooltip = branch 
             ? `GitForge: ${branch}\n─────────────\n• New Branch\n• Merge\n• Rename\n• Push / Pull / Fetch`
             : 'GitForge - Click for branch actions';
         branchStatusBar.show();
     } catch {
-        branchStatusBar.text = '$(source-control)';
+        paintStatusBar('');
         branchStatusBar.show();
     }
+}
+
+function paintStatusBar(branch: string) {
+    if (!branchStatusBar) return;
+    branchStatusBar.text = branch ? `$(git-branch) ${branch}` : '$(git-branch) GitForge';
+    branchStatusBar.color = '#4C9AFF';
+    branchStatusBar.backgroundColor = undefined;
 }
 
 function startConflictWatcher() {
@@ -467,4 +510,8 @@ export function deactivate() {
     if (compareBranchPanel) {
         compareBranchPanel.dispose();
     }
+    commitGraph?.dispose();
+    fileHistory?.dispose();
+    repoExplorer?.dispose();
+    mergeBasePanel?.dispose();
 }

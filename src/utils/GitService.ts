@@ -26,6 +26,90 @@ export interface MergeChange {
     deletions: number;
 }
 
+export interface GraphCommit {
+    hash: string;
+    parents: string[];
+    author: string;
+    email: string;
+    date: string;
+    subject: string;
+    refs: string[];
+    lane: number;
+}
+
+export interface WorkingChange {
+    path: string;
+    status: string;
+}
+
+export interface CommitFileChange {
+    status: string;
+    path: string;
+    oldPath?: string;
+    patch: string;
+}
+
+export interface FileHistoryEntry {
+    hash: string;
+    author: string;
+    date: string;
+    subject: string;
+    filePath: string;
+}
+
+export interface RemoteRecord {
+    name: string;
+    url: string;
+}
+
+export interface StashRecord {
+    index: number;
+    ref: string;
+    message: string;
+}
+
+export interface RangeCommit {
+    hash: string;
+    subject: string;
+    author: string;
+}
+
+export interface MergeBaseReport {
+    base: string;
+    left: string;
+    right: string;
+    ahead: number;
+    behind: number;
+    aheadCommits: RangeCommit[];
+    behindCommits: RangeCommit[];
+    files: { status: string; path: string }[];
+}
+
+function assignLanes(commits: GraphCommit[]): void {
+    const lanes: Array<string | null> = [];
+    for (const commit of commits) {
+        let lane = lanes.indexOf(commit.hash);
+        if (lane === -1) {
+            lane = lanes.indexOf(null);
+        }
+        if (lane === -1) {
+            lane = lanes.length;
+            lanes.push(null);
+        }
+        commit.lane = lane;
+        const [first, ...rest] = commit.parents;
+        lanes[lane] = first || null;
+        for (const parent of rest) {
+            const empty = lanes.indexOf(null);
+            if (empty === -1) {
+                lanes.push(parent);
+            } else {
+                lanes[empty] = parent;
+            }
+        }
+    }
+}
+
 export class GitService {
     private gitCache: Map<string, SimpleGit> = new Map();
 
@@ -132,7 +216,7 @@ export class GitService {
             const relativePath = path.relative(gitInfo.root, filePath);
             console.log('GitForge: Getting blame for', relativePath, 'in', gitInfo.root);
             
-            const result = await gitInfo.git.raw(['blame', '--line-porcelain', relativePath]);
+            const result = await this.runBlame(gitInfo.git, gitInfo.root, [relativePath]);
             const blameInfos = this.parseBlameOutput(result, relativePath);
             console.log('GitForge: Found', blameInfos.length, 'blame entries');
             return blameInfos;
@@ -148,10 +232,8 @@ export class GitService {
 
         try {
             const relativePath = path.relative(gitInfo.root, filePath);
-            const result = await gitInfo.git.raw([
-                'blame', 
-                '--line-porcelain', 
-                `-L${line},${line}`, 
+            const result = await this.runBlame(gitInfo.git, gitInfo.root, [
+                `-L${line},${line}`,
                 relativePath
             ]);
             const blameInfos = this.parseBlameOutput(result, relativePath);
@@ -179,9 +261,7 @@ export class GitService {
         try {
             for (let i = 0; i < maxDepth; i++) {
                 try {
-                    const result = await gitInfo.git.raw([
-                        'blame',
-                        '--line-porcelain',
+                    const result = await this.runBlame(gitInfo.git, gitInfo.root, [
                         `-L${currentLine},${currentLine}`,
                         currentHash,
                         '--',
@@ -973,6 +1053,274 @@ export class GitService {
             console.error('GitForge: Error getting file from branch:', error);
             return null;
         }
+    }
+
+    private blameFlags(root: string): string[] {
+        const config = vscode.workspace.getConfiguration('gitforge');
+        const flags: string[] = [];
+        if (config.get<boolean>('blame.ignoreWhitespace', true)) {
+            flags.push('-w');
+        }
+        if (config.get<boolean>('blame.ignoreRevs', true)) {
+            const ignoreFile = path.join(root, '.git-blame-ignore-revs');
+            if (fs.existsSync(ignoreFile)) {
+                flags.push('--ignore-revs-file', ignoreFile);
+            }
+        }
+        return flags;
+    }
+
+    private async runBlame(git: SimpleGit, root: string, rest: string[]): Promise<string> {
+        const flags = this.blameFlags(root);
+        try {
+            return await git.raw(['blame', '--line-porcelain', ...flags, ...rest]);
+        } catch (error) {
+            if (!flags.includes('--ignore-revs-file')) {
+                throw error;
+            }
+            const stripped: string[] = [];
+            for (let i = 0; i < flags.length; i++) {
+                if (flags[i] === '--ignore-revs-file') {
+                    i += 1;
+                    continue;
+                }
+                stripped.push(flags[i]);
+            }
+            return git.raw(['blame', '--line-porcelain', ...stripped, ...rest]);
+        }
+    }
+
+    async getGraphCommits(maxCount: number = 200): Promise<GraphCommit[]> {
+        const gitInfo = this.getDefaultGit();
+        if (!gitInfo) return [];
+        const raw = await gitInfo.git.raw([
+            'log',
+            '--all',
+            '--date-order',
+            `-n${maxCount}`,
+            '--pretty=format:%H%x1f%P%x1f%an%x1f%ae%x1f%aI%x1f%s%x1f%D'
+        ]);
+        const commits = raw.split('\n').filter(Boolean).map((row) => {
+            const [hash, parents, author, email, date, subject, refs] = row.split('\x1f');
+            return {
+                hash,
+                parents: parents ? parents.split(' ').filter(Boolean) : [],
+                author: author || '',
+                email: email || '',
+                date: date || '',
+                subject: subject || '',
+                refs: (refs || '').split(',').map((ref) => ref.trim()).filter(Boolean),
+                lane: 0
+            };
+        });
+        assignLanes(commits);
+        return commits;
+    }
+
+    async getWorkingChanges(): Promise<WorkingChange[]> {
+        const gitInfo = this.getDefaultGit();
+        if (!gitInfo) return [];
+        const status = await gitInfo.git.status();
+        return status.files.map((file) => ({
+            path: file.path,
+            status: file.index === '?' || file.working_dir === '?' ? 'untracked' : (file.working_dir || file.index || 'M')
+        }));
+    }
+
+    async getCommitFileChanges(hash: string): Promise<CommitFileChange[]> {
+        const gitInfo = this.getDefaultGit();
+        if (!gitInfo) return [];
+        const names = await gitInfo.git.raw([
+            'show',
+            '--first-parent',
+            '--name-status',
+            '--format=',
+            hash
+        ]);
+        const files: CommitFileChange[] = [];
+        for (const line of names.split('\n')) {
+            if (!line.trim()) continue;
+            const parts = line.split('\t');
+            const status = parts[0] || 'M';
+            const filePath = parts[parts.length - 1] || '';
+            const oldPath = parts.length > 2 ? parts[1] : undefined;
+            files.push({ status, path: filePath, oldPath, patch: '' });
+        }
+
+        const patch = await gitInfo.git.raw([
+            'show',
+            '--first-parent',
+            '--format=',
+            '--unified=3',
+            hash
+        ]);
+        const chunks = patch.split(/^diff --git /m).slice(1);
+        for (const chunk of chunks) {
+            const header = chunk.split('\n')[0] || '';
+            const match = header.match(/b\/(.+)$/);
+            const filePath = match ? match[1] : '';
+            const file = files.find((item) => item.path === filePath);
+            if (!file) continue;
+            const body = chunk.split('\n').slice(1).join('\n');
+            file.patch = body.split('\n').slice(0, 160).join('\n');
+        }
+        return files;
+    }
+
+    async getFileHistory(filePath: string, maxCount: number = 100): Promise<FileHistoryEntry[]> {
+        const gitInfo = this.getGitForFile(filePath);
+        if (!gitInfo) return [];
+        const relativePath = path.relative(gitInfo.root, filePath);
+        const raw = await gitInfo.git.raw([
+            'log',
+            '--follow',
+            `-n${maxCount}`,
+            '--pretty=format:%H%x1f%an%x1f%aI%x1f%s',
+            '--',
+            relativePath
+        ]);
+        return raw.split('\n').filter(Boolean).map((row) => {
+            const [hash, author, date, subject] = row.split('\x1f');
+            return {
+                hash,
+                author: author || '',
+                date: date || '',
+                subject: subject || '',
+                filePath: relativePath
+            };
+        });
+    }
+
+    async getRemoteRecords(): Promise<RemoteRecord[]> {
+        const gitInfo = this.getDefaultGit();
+        if (!gitInfo) return [];
+        const raw = await gitInfo.git.raw(['remote', '-v']);
+        const byName = new Map<string, string>();
+        for (const line of raw.split('\n')) {
+            const match = line.match(/^(\S+)\s+(\S+)\s+\((fetch|push)\)$/);
+            if (!match) continue;
+            if (match[3] === 'fetch' || !byName.has(match[1])) {
+                byName.set(match[1], match[2]);
+            }
+        }
+        return [...byName.entries()].map(([name, url]) => ({ name, url }));
+    }
+
+    async getTags(): Promise<string[]> {
+        const gitInfo = this.getDefaultGit();
+        if (!gitInfo) return [];
+        const raw = await gitInfo.git.raw(['tag', '--list']);
+        return raw.split('\n').map((tag) => tag.trim()).filter(Boolean);
+    }
+
+    async getStashes(): Promise<StashRecord[]> {
+        const gitInfo = this.getDefaultGit();
+        if (!gitInfo) return [];
+        const raw = await gitInfo.git.raw(['stash', 'list', '--pretty=format:%gd%x1f%s']);
+        return raw.split('\n').filter(Boolean).map((row, index) => {
+            const [ref, message] = row.split('\x1f');
+            return { index, ref: ref || `stash@{${index}}`, message: message || ref || '' };
+        });
+    }
+
+    async getUpstream(): Promise<string> {
+        const gitInfo = this.getDefaultGit();
+        if (!gitInfo) return '';
+        try {
+            const raw = await gitInfo.git.raw(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}']);
+            return raw.trim();
+        } catch {
+            return '';
+        }
+    }
+
+    async compareMergeBase(left: string, right: string): Promise<MergeBaseReport | null> {
+        const gitInfo = this.getDefaultGit();
+        if (!gitInfo) return null;
+        const base = (await gitInfo.git.raw(['merge-base', left, right])).trim();
+        const aheadRaw = (await gitInfo.git.raw(['rev-list', '--count', `${right}..${left}`])).trim();
+        const behindRaw = (await gitInfo.git.raw(['rev-list', '--count', `${left}..${right}`])).trim();
+        const aheadLog = await this.logRange(gitInfo.git, `${right}..${left}`);
+        const behindLog = await this.logRange(gitInfo.git, `${left}..${right}`);
+        const nameStatus = await gitInfo.git.raw(['diff', '--name-status', base, left]);
+        const files = nameStatus.split('\n').filter(Boolean).map((line) => {
+            const parts = line.split('\t');
+            return { status: parts[0] || 'M', path: parts[parts.length - 1] || '' };
+        });
+        return {
+            base,
+            left,
+            right,
+            ahead: Number(aheadRaw) || 0,
+            behind: Number(behindRaw) || 0,
+            aheadCommits: aheadLog,
+            behindCommits: behindLog,
+            files
+        };
+    }
+
+    private async logRange(git: SimpleGit, range: string): Promise<RangeCommit[]> {
+        try {
+            const raw = await git.raw(['log', '--pretty=format:%H%x1f%s%x1f%an', range]);
+            return raw.split('\n').filter(Boolean).map((row) => {
+                const [hash, subject, author] = row.split('\x1f');
+                return { hash, subject: subject || '', author: author || '' };
+            });
+        } catch {
+            return [];
+        }
+    }
+
+    async showFileAt(ref: string, filePath: string): Promise<string> {
+        const gitInfo = this.getDefaultGit();
+        if (!gitInfo) return '';
+        try {
+            return await gitInfo.git.show([`${ref}:${filePath}`]);
+        } catch {
+            return '';
+        }
+    }
+
+    async resetMixed(ref: string): Promise<void> {
+        const gitInfo = this.getDefaultGit();
+        if (!gitInfo) return;
+        await gitInfo.git.reset(['--mixed', ref]);
+    }
+
+    async revertCommit(hash: string): Promise<void> {
+        const gitInfo = this.getDefaultGit();
+        if (!gitInfo) return;
+        await gitInfo.git.raw(['revert', '--no-edit', hash]);
+    }
+
+    async createBranchAt(name: string, hash: string): Promise<void> {
+        const gitInfo = this.getDefaultGit();
+        if (!gitInfo) return;
+        await gitInfo.git.raw(['branch', name, hash]);
+    }
+
+    async createTag(name: string, hash: string): Promise<void> {
+        const gitInfo = this.getDefaultGit();
+        if (!gitInfo) return;
+        await gitInfo.git.raw(['tag', name, hash]);
+    }
+
+    async deleteTag(name: string): Promise<void> {
+        const gitInfo = this.getDefaultGit();
+        if (!gitInfo) return;
+        await gitInfo.git.raw(['tag', '-d', name]);
+    }
+
+    async applyStash(ref: string): Promise<void> {
+        const gitInfo = this.getDefaultGit();
+        if (!gitInfo) return;
+        await gitInfo.git.raw(['stash', 'apply', ref]);
+    }
+
+    async dropStash(ref: string): Promise<void> {
+        const gitInfo = this.getDefaultGit();
+        if (!gitInfo) return;
+        await gitInfo.git.raw(['stash', 'drop', ref]);
     }
 
     private parseBlameOutput(output: string, filename: string): BlameInfo[] {

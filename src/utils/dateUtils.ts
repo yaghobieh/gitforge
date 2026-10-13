@@ -26,6 +26,15 @@ export function formatRelativeDate(date: Date): string {
     }
 }
 
+export function formatBlameLine(template: string, author: string, date: Date, summary: string, hash: string): string {
+    return template
+        .replaceAll('{author}', author)
+        .replaceAll('{age}', formatRelativeDate(date))
+        .replaceAll('{date}', date.toLocaleDateString())
+        .replaceAll('{message}', summary)
+        .replaceAll('{sha}', hash.substring(0, 7));
+}
+
 export function formatShortDate(date: Date): string {
     const month = date.toLocaleString('default', { month: 'short' });
     const day = date.getDate();
