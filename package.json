@@ -32,7 +32,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://gitlab.com/Jfalcon_Digita/gitfog"
+    "url": "https://github.com/yaghobieh/gitforge"
   },
   "activationEvents": [
     "onStartupFinished"
@@ -381,7 +381,7 @@
     "lint": "eslint src --ext ts",
     "package": "bash -c 'source ~/.nvm/nvm.sh && npx @vscode/vsce package --no-dependencies'",
     "publish:vsce": "bash -c 'source ~/.nvm/nvm.sh && npm run compile && npx @vscode/vsce publish'",
-    "publish:ovsx": "npm run package && npx ovsx publish gitforge-$(node -p \"require('./package.json').version\").vsix -p ovsxat_0f98823d-9e7b-4a46-80aa-2dbc8f581076"
+    "publish:ovsx": "npm run package && npx ovsx publish \"gitforge-$(node -p \\\"require('./package.json').version\\\").vsix\" -p \"$OVSX_PAT\""
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
