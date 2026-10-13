@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { BlameInfo } from '../utils/GitService';
-import { formatRelativeDate } from '../utils/dateUtils';
+import { formatBlameLine, formatRelativeDate } from '../utils/dateUtils';
 
 export class BlameDecorationProvider implements vscode.Disposable {
     private gutterDecorationType: vscode.TextEditorDecorationType;
@@ -83,16 +83,14 @@ export class BlameDecorationProvider implements vscode.Disposable {
         const lineLength = editor.document.lineAt(line).text.length;
         const range = new vscode.Range(line, lineLength, line, lineLength);
 
-        const relativeDate = formatRelativeDate(lineBlame.date);
-        const shortHash = lineBlame.hash.substring(0, 7);
-        const author = this.truncateAuthor(lineBlame.author, 20);
-        const summary = this.truncateSummary(lineBlame.summary, 40);
+        const format = vscode.workspace.getConfiguration('gitforge').get<string>('blame.format') || '{author}, {age}';
+        const text = formatBlameLine(format, lineBlame.author, lineBlame.date, lineBlame.summary, lineBlame.hash);
 
         const decoration: vscode.DecorationOptions = {
             range,
             renderOptions: {
                 after: {
-                    contentText: `  ${author} • ${relativeDate} • ${shortHash} — ${summary}`,
+                    contentText: `  ${text}`,
                     color: new vscode.ThemeColor('gitforge.blameForeground'),
                     fontStyle: 'italic',
                     margin: '0 0 0 2em'
@@ -101,6 +99,25 @@ export class BlameDecorationProvider implements vscode.Disposable {
         };
 
         editor.setDecorations(this.currentLineDecorationType, [decoration]);
+    }
+
+    showSpecificBlame(editor: vscode.TextEditor, line: number, blame: BlameInfo, label: string): void {
+        if (line < 0 || line >= editor.document.lineCount) return;
+        const lineLength = editor.document.lineAt(line).text.length;
+        const range = new vscode.Range(line, lineLength, line, lineLength);
+        const format = vscode.workspace.getConfiguration('gitforge').get<string>('blame.format') || '{author}, {age}';
+        const text = formatBlameLine(format, blame.author, blame.date, blame.summary, blame.hash);
+        editor.setDecorations(this.currentLineDecorationType, [{
+            range,
+            renderOptions: {
+                after: {
+                    contentText: `  ${label} ${text}`,
+                    color: new vscode.ThemeColor('gitforge.blameForeground'),
+                    fontStyle: 'italic',
+                    margin: '0 0 0 2em'
+                }
+            }
+        }]);
     }
 
     highlightLine(editor: vscode.TextEditor, line: number): void {

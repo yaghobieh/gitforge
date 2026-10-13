@@ -2,6 +2,25 @@
 
 All notable changes to the GitForge extension will be documented in this file.
 
+## [1.0.5] - 2026-10-13
+
+### Changed
+- New icon: green and blue branch ring on an anvil, replacing the red mascot
+- Nav icon has no background tile, so it reads in Cursor’s bottom activity bar
+- Status bar item shows the branch in brand blue instead of the prominent source-control chip
+
+### Added
+- Commit graph with working changes, lane markers, and a filter
+- Commit details with patches, copy SHA, and open-on-host
+- Commit actions: checkout, reset soft/mixed/hard, revert, cherry-pick, branch, tag
+- Line history stepper on the blame hover (older and newer)
+- File history view that follows renames
+- Blame format string, ignore-whitespace, and `.git-blame-ignore-revs`
+- Repository explorer for branches, remotes, tags, and stashes
+- Merge-base compare with ahead, behind, and changed files
+- Issue links for `#123` on GitHub, GitLab, and Bitbucket remotes
+- Keyboard shortcuts for blame, line history, and the conflict resolver
+
 ## [1.0.2] - 2026-01-09
 
 ### Improved

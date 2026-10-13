@@ -4,6 +4,13 @@ import { BlameDecorationProvider } from './BlameDecorationProvider';
 import { BlameHistoryProvider } from './BlameHistoryProvider';
 import { formatRelativeDate } from '../utils/dateUtils';
 
+interface LineCursor {
+    file: string;
+    line: number;
+    items: BlameInfo[];
+    index: number;
+}
+
 export class BlameController implements vscode.Disposable {
     private decorationProvider: BlameDecorationProvider;
     private historyProvider: BlameHistoryProvider;
@@ -11,6 +18,8 @@ export class BlameController implements vscode.Disposable {
     private disposables: vscode.Disposable[] = [];
     private currentBlameData: Map<string, BlameInfo[]> = new Map();
     private hoverProvider: vscode.Disposable | null = null;
+    private lineCursor: LineCursor | null = null;
+    private lineStatus: vscode.StatusBarItem;
 
     constructor(
         private context: vscode.ExtensionContext,
@@ -18,6 +27,8 @@ export class BlameController implements vscode.Disposable {
     ) {
         this.decorationProvider = new BlameDecorationProvider();
         this.historyProvider = new BlameHistoryProvider(gitService);
+        this.lineStatus = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 50);
+        this.lineStatus.tooltip = 'GitForge line history. Older and newer are on the blame hover.';
         
         console.log('GitForge: BlameController initialized');
         
@@ -146,8 +157,19 @@ export class BlameController implements vscode.Disposable {
         markdown.appendMarkdown(`**Date:** ${relativeDate} (${lineBlame.date.toLocaleDateString()})\n\n`);
         markdown.appendMarkdown(`**Commit:** \`${lineBlame.hash.substring(0, 8)}\`\n\n`);
         markdown.appendMarkdown(`---\n\n`);
+        const cursor = this.lineCursor;
+        const onThisLine = cursor && cursor.file === document.uri.fsPath && cursor.line === position.line + 1;
+        const shown = onThisLine ? cursor.items[cursor.index] : lineBlame;
+        if (shown && shown.hash !== lineBlame.hash) {
+            markdown.appendMarkdown(`\n\n**Showing:** \`${shown.hash.substring(0, 7)}\` ${this.escapeMarkdown(shown.summary)}\n\n`);
+        }
+        if (onThisLine) {
+            markdown.appendMarkdown(`**Line history:** ${cursor.index + 1} of ${cursor.items.length}\n\n`);
+        }
         markdown.appendMarkdown(`[$(history) Show History](command:gitforge.showLineHistory) | `);
-        markdown.appendMarkdown(`[$(git-commit) Open Commit](command:git.showOutput)`);
+        markdown.appendMarkdown(`[Older](command:gitforge.stepLineOlder) | `);
+        markdown.appendMarkdown(`[Newer](command:gitforge.stepLineNewer) | `);
+        markdown.appendMarkdown(`[$(git-commit) Open Commit](command:gitforge.showCommitDetails?${encodeURIComponent(JSON.stringify({ hash: (shown || lineBlame).hash }))})`);
 
         return new vscode.Hover(markdown);
     }
@@ -233,6 +255,50 @@ export class BlameController implements vscode.Disposable {
         return this.historyProvider;
     }
 
+    async stepLineHistory(direction: 'older' | 'newer'): Promise<void> {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) return;
+
+        const file = editor.document.uri.fsPath;
+        const line = editor.selection.active.line + 1;
+        const same = this.lineCursor && this.lineCursor.file === file && this.lineCursor.line === line;
+
+        if (!same) {
+            const config = vscode.workspace.getConfiguration('gitforge');
+            const maxDepth = config.get<number>('blame.maxHistoryDepth') || 100;
+            const items = await this.gitService.getLineHistory(file, line, maxDepth);
+            if (items.length === 0) {
+                vscode.window.showWarningMessage('GitForge: No history for this line.');
+                return;
+            }
+            this.lineCursor = { file, line, items, index: 0 };
+            this.historyProvider.setHistory(items);
+        }
+
+        const cursor = this.lineCursor;
+        if (!cursor) return;
+        if (direction === 'older' && cursor.index < cursor.items.length - 1) {
+            cursor.index += 1;
+        }
+        if (direction === 'newer' && cursor.index > 0) {
+            cursor.index -= 1;
+        }
+
+        const item = cursor.items[cursor.index];
+        this.decorationProvider.showSpecificBlame(
+            editor,
+            line - 1,
+            item,
+            `${cursor.index + 1}/${cursor.items.length}`
+        );
+        this.lineStatus.text = `$(history) ${cursor.index + 1}/${cursor.items.length} ${item.hash.substring(0, 7)} ${item.summary}`;
+        this.lineStatus.show();
+    }
+
+    disposeLineStatus(): void {
+        this.lineStatus.dispose();
+    }
+
     dispose(): void {
         this.decorationProvider.dispose();
         
@@ -244,6 +310,7 @@ export class BlameController implements vscode.Disposable {
             clearTimeout(this.updateDebounceTimer);
         }
         
+        this.lineStatus.dispose();
         this.disposables.forEach(d => d.dispose());
     }
 }

@@ -2,7 +2,7 @@
   "name": "gitforge",
   "displayName": "GitForge",
   "description": "Advanced Git tools: inline blame, conflict resolver, rollback, cherry-pick - inspired by JetBrains IDEs",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "author": {
     "name": "John Yaghobieh",
     "email": "hello@jflcon.net"
@@ -169,6 +169,98 @@
         "title": "Branch Actions...",
         "category": "GitForge",
         "icon": "$(git-merge)"
+      },
+      {
+        "command": "gitforge.showCommitGraph",
+        "title": "Show Commit Graph",
+        "category": "GitForge",
+        "icon": "$(git-commit)"
+      },
+      {
+        "command": "gitforge.showCommitDetails",
+        "title": "Show Commit Details",
+        "category": "GitForge"
+      },
+      {
+        "command": "gitforge.showFileHistory",
+        "title": "Show File History",
+        "category": "GitForge",
+        "icon": "$(history)"
+      },
+      {
+        "command": "gitforge.stepLineOlder",
+        "title": "Older Revision of This Line",
+        "category": "GitForge"
+      },
+      {
+        "command": "gitforge.stepLineNewer",
+        "title": "Newer Revision of This Line",
+        "category": "GitForge"
+      },
+      {
+        "command": "gitforge.compareMergeBase",
+        "title": "Compare Merge Base...",
+        "category": "GitForge",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "gitforge.refreshExplorer",
+        "title": "Refresh Repository",
+        "category": "GitForge",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gitforge.explorerCheckout",
+        "title": "Checkout",
+        "category": "GitForge"
+      },
+      {
+        "command": "gitforge.explorerMerge",
+        "title": "Merge into Current Branch",
+        "category": "GitForge"
+      },
+      {
+        "command": "gitforge.explorerDeleteBranch",
+        "title": "Delete Branch",
+        "category": "GitForge"
+      },
+      {
+        "command": "gitforge.explorerDeleteTag",
+        "title": "Delete Tag",
+        "category": "GitForge"
+      },
+      {
+        "command": "gitforge.explorerApplyStash",
+        "title": "Apply Stash",
+        "category": "GitForge"
+      },
+      {
+        "command": "gitforge.explorerDropStash",
+        "title": "Drop Stash",
+        "category": "GitForge"
+      },
+      {
+        "command": "gitforge.explorerOpenRemote",
+        "title": "Open Remote in Browser",
+        "category": "GitForge"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "gitforge.toggleBlame",
+        "key": "ctrl+shift+b",
+        "mac": "cmd+shift+b"
+      },
+      {
+        "command": "gitforge.showLineHistory",
+        "key": "ctrl+shift+h",
+        "mac": "cmd+shift+h",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "gitforge.openConflictResolver",
+        "key": "ctrl+shift+c",
+        "mac": "cmd+shift+c"
       }
     ],
     "submenus": [
@@ -231,6 +323,18 @@
           "group": "5_info@3"
         },
         {
+          "command": "gitforge.compareMergeBase",
+          "group": "5_info@5"
+        },
+        {
+          "command": "gitforge.showCommitGraph",
+          "group": "5_info@6"
+        },
+        {
+          "command": "gitforge.showFileHistory",
+          "group": "5_info@7"
+        },
+        {
           "command": "gitforge.branchQuickPick",
           "group": "5_info@4"
         },
@@ -266,6 +370,64 @@
         {
           "command": "gitforge.showMergePanel",
           "group": "navigation@3"
+        },
+        {
+          "command": "gitforge.showCommitGraph",
+          "group": "navigation@4"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "gitforge.refreshExplorer",
+          "when": "view == gitforge.explorer",
+          "group": "navigation"
+        },
+        {
+          "command": "gitforge.showFileHistory",
+          "when": "view == gitforge.fileHistory",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "gitforge.explorerCheckout",
+          "when": "view == gitforge.explorer && viewItem == branch",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitforge.explorerMerge",
+          "when": "view == gitforge.explorer && viewItem == branch",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitforge.compareMergeBase",
+          "when": "view == gitforge.explorer && viewItem == branch",
+          "group": "navigation@3"
+        },
+        {
+          "command": "gitforge.explorerDeleteBranch",
+          "when": "view == gitforge.explorer && viewItem == branch",
+          "group": "navigation@4"
+        },
+        {
+          "command": "gitforge.explorerOpenRemote",
+          "when": "view == gitforge.explorer && viewItem == remote",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitforge.explorerDeleteTag",
+          "when": "view == gitforge.explorer && viewItem == tag",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitforge.explorerApplyStash",
+          "when": "view == gitforge.explorer && viewItem == stash",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitforge.explorerDropStash",
+          "when": "view == gitforge.explorer && viewItem == stash",
+          "group": "navigation@2"
         }
       ]
     },
@@ -294,6 +456,16 @@
           "id": "gitforge.blameHistory",
           "name": "Blame History",
           "when": "gitforge.isGitRepo"
+        },
+        {
+          "id": "gitforge.fileHistory",
+          "name": "File History",
+          "when": "gitforge.isGitRepo"
+        },
+        {
+          "id": "gitforge.explorer",
+          "name": "Repository",
+          "when": "gitforge.isGitRepo"
         }
       ]
     },
@@ -309,6 +481,21 @@
           "type": "boolean",
           "default": true,
           "description": "Show blame info on hover"
+        },
+        "gitforge.blame.format": {
+          "type": "string",
+          "default": "{author}, {age}",
+          "description": "Inline blame text. Tokens: {author} {age} {date} {message} {sha}"
+        },
+        "gitforge.blame.ignoreWhitespace": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ignore whitespace-only changes when blaming a line"
+        },
+        "gitforge.blame.ignoreRevs": {
+          "type": "boolean",
+          "default": true,
+          "description": "Honor .git-blame-ignore-revs when that file exists in the repository"
         },
         "gitforge.blame.dateFormat": {
           "type": "string",
@@ -334,6 +521,16 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically show merge panel during merge operations"
+        },
+        "gitforge.graph.maxItems": {
+          "type": "number",
+          "default": 200,
+          "description": "Maximum commits loaded in the commit graph"
+        },
+        "gitforge.issueLinking.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Turn #123 in commit subjects into links for GitHub, GitLab, and Bitbucket remotes"
         }
       }
     },
@@ -381,7 +578,7 @@
     "lint": "eslint src --ext ts",
     "package": "bash -c 'source ~/.nvm/nvm.sh && npx @vscode/vsce package --no-dependencies'",
     "publish:vsce": "bash -c 'source ~/.nvm/nvm.sh && npm run compile && npx @vscode/vsce publish'",
-    "publish:ovsx": "npm run package && npx ovsx publish \"gitforge-$(node -p \\\"require('./package.json').version\\\").vsix\" -p \"$OVSX_PAT\""
+    "publish:ovsx": "npm run package && npx ovsx publish \"gitforge-$(node -p \"require('./package.json').version\").vsix\" -p \"$OVSX_PAT\""
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
